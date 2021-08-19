@@ -8,6 +8,7 @@
 	<DebugType>embedded</DebugType>
 	<PublishSingleFile>true</PublishSingleFile>
 	<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+	<Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

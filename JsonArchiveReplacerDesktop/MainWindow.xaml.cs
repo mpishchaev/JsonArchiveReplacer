@@ -92,7 +92,7 @@ namespace JsonArchiveReplacerDesktop
 
         private void HandleOutput(object sender, string e)
         {
-            OutputBox.Document.Blocks.Add(new Paragraph(new Run(e)));
+            OutputBox.AppendText($"{e}\r");
         }
 
         private void HandleProgress(object sender, int e)

@@ -36,6 +36,7 @@ namespace JsonArchiveReplacer
                     HandleZipFile(fileEntries[i]);
                     Progress?.Invoke(this, (int)((float)i / fileEntries.Length * 100));
                 }
+                Progress?.Invoke(this, 100);
                 Output?.Invoke(this, $"{fileEntries.Length} zip files handled");                
             }
             Directory.Delete(_tempFolder, true);
@@ -80,7 +81,7 @@ namespace JsonArchiveReplacer
 
         private void ReplaceFieldsInFile(string fileName)
         {
-            var file = File.ReadAllText(fileName);
+            var file = File.ReadAllText(fileName);            
             foreach (var repl in _replacements)
             {
                 if (file.Contains(repl.Key))
