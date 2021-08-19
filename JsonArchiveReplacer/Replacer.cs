@@ -5,38 +5,45 @@ using System.IO.Compression;
 
 namespace JsonArchiveReplacer
 {
-    class Program
+    public class Replacer
     {
-        private static string ZipsFolder = $@".\Zips";
-        private static string TempFolder = $@".\Temp";
+        private readonly string _zipsFolder;
+        private readonly string _tempFolder;
+        private readonly Dictionary<string, string> _replacements;
 
-        private static Dictionary<string, string> _replacements = new Dictionary<string, string>()
-        {
-            { "\"iconURL\":\"\"", "\"iconURL\": null" },
-            { "\"iconURL\": \"\"", "\"iconURL\": null" },
-            { "\"coverURL\":\"\"", "\"coverURL\": null" },
-            { "\"coverURL\": \"\"", "\"coverURL\": null" },
-        };
+        public event EventHandler<string> Output;
+        public event EventHandler<int> Progress;
 
-        static void Main(string[] args)
+        public Replacer(string zipsFolder, string tempFolder, Dictionary<string, string> replacements)
         {
-            Console.WriteLine("Checking 'Zips' folder");            
-            if (Directory.Exists(ZipsFolder))
-            {
-                string[] fileEntries = Directory.GetFiles(ZipsFolder, "*.zip");                
-                foreach (string fileName in fileEntries)
-                {
-                    ClearTempFolder();
-                    HandleZipFile(fileName);                    
-                }
-                Console.WriteLine($"{fileEntries.Length} zip files handled");
-            }
-            Directory.Delete(TempFolder, true);
-            Console.WriteLine("Finished");
-            Console.ReadLine();
+            _zipsFolder = zipsFolder;
+            _tempFolder = tempFolder;
+            _replacements = replacements;
         }
 
-        private static void HandleZipFile(string zipFilePath)
+        public void Run()
+        {
+            Output?.Invoke(this, "Checking 'Zips' folder");
+
+            if (Directory.Exists(_zipsFolder))
+            {
+                string[] fileEntries = Directory.GetFiles(_zipsFolder, "*.zip");
+
+                Progress?.Invoke(this, 0);
+                for (int i = 0; i < fileEntries.Length; i++)
+                {
+                    ClearTempFolder();
+                    HandleZipFile(fileEntries[i]);
+                    Progress?.Invoke(this, (int)((float)i / fileEntries.Length * 100));
+                }
+                Output?.Invoke(this, $"{fileEntries.Length} zip files handled");                
+            }
+            Directory.Delete(_tempFolder, true);
+
+            Output?.Invoke(this, "Finished");
+        }
+
+        private void HandleZipFile(string zipFilePath)
         {
             using (FileStream zipToOpen = new FileStream(zipFilePath, FileMode.Open))
             {
@@ -48,19 +55,20 @@ namespace JsonArchiveReplacer
                         if (entry.FullName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                         {
                             // Gets the full path to ensure that relative segments are removed.
-                            string destinationPath = Path.GetFullPath(Path.Combine(TempFolder, entry.FullName));
+                            string destinationPath = Path.GetFullPath(Path.Combine(_tempFolder, entry.FullName));
 
                             entry.ExtractToFile(destinationPath);
+                            
                             haveFiles |= true;
                         }
                     }
                     if (haveFiles)
                     {
-                        string[] files = Directory.GetFiles(TempFolder, "*.json");
+                        string[] files = Directory.GetFiles(_tempFolder, "*.json");
                         foreach (var file in files)
                         {
                             ReplaceFieldsInFile(file);
-                            var fileName = file.Replace($"{TempFolder}\\", "");
+                            var fileName = file.Replace($"{_tempFolder}\\", "");
                             var entry = archive.GetEntry(fileName);
                             entry.Delete();
                             archive.CreateEntryFromFile(file, fileName);
@@ -70,7 +78,7 @@ namespace JsonArchiveReplacer
             }
         }
 
-        private static void ReplaceFieldsInFile(string fileName)
+        private void ReplaceFieldsInFile(string fileName)
         {
             var file = File.ReadAllText(fileName);
             foreach (var repl in _replacements)
@@ -79,20 +87,20 @@ namespace JsonArchiveReplacer
                 {
                     file = file.Replace(repl.Key, repl.Value);
                 }
-            }            
+            }
             File.WriteAllText(fileName, file);
         }
-    
-        private static void ClearTempFolder()
+
+        private void ClearTempFolder()
         {
-            if (!Directory.Exists(TempFolder))
+            if (!Directory.Exists(_tempFolder))
             {
-                Directory.CreateDirectory(TempFolder);
+                Directory.CreateDirectory(_tempFolder);
             }
             else
             {
-                Directory.Delete(TempFolder, true);
-                Directory.CreateDirectory(TempFolder);
+                Directory.Delete(_tempFolder, true);
+                Directory.CreateDirectory(_tempFolder);
             }
         }
     }
